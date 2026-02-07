@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpecForge Review - Admin</title>
+  <link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+  <header>
+    <h1>SpecForge Review</h1>
+    <p class="subtitle">Admin Dashboard</p>
+  </header>
+
+  <main>
+    <section id="status-section" class="card">
+      <h2>Service Status</h2>
+      <div id="status-loading" class="loading">Loading...</div>
+      <div id="status-content" class="hidden">
+        <dl>
+          <dt>Service</dt>
+          <dd id="status-service">-</dd>
+          <dt>Engine</dt>
+          <dd id="status-engine">-</dd>
+          <dt>Gemini API Key</dt>
+          <dd id="status-gemini">-</dd>
+          <dt>Allowed APIs</dt>
+          <dd id="status-apis">-</dd>
+          <dt>Timestamp</dt>
+          <dd id="status-timestamp">-</dd>
+        </dl>
+      </div>
+      <div id="status-error" class="error hidden"></div>
+    </section>
+
+    <section id="review-section" class="card">
+      <h2>Latest Review</h2>
+      <div id="review-loading" class="loading">Loading...</div>
+      <div id="review-content" class="hidden">
+        <div id="review-meta" class="review-meta"></div>
+        <pre id="review-body"></pre>
+        <div id="review-truncated" class="truncated hidden">
+          (4096 characters exceeded - truncated)
+        </div>
+      </div>
+      <div id="review-error" class="error hidden"></div>
+    </section>
+
+    <div class="actions">
+      <button id="refresh-btn" type="button">Refresh</button>
+    </div>
+  </main>
+
+  <script src="/ui/app.js"></script>
+</body>
+</html>
