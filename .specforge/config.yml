@@ -5,28 +5,25 @@
 review_paths:
   - "requirements/**/*.md"
 
-# Agent configuration (Phase 1: single agent)
+# Agent configuration (Phase 1: rule-based only)
 agents:
   phase1:
     - name: requirements-analyst
       enabled: true
-      description: "Requirements quality, completeness, and clarity review"
-  phase2_future:
-    - name: security-reviewer
-      enabled: false
-    - name: test-planner
-      enabled: false
-    - name: document-integrator
-      enabled: false
+      description: "Requirements quality, completeness, and clarity review (rule-based)"
 
-# Review settings
+# Review settings (rule-based engine - no external AI API)
 review:
-  model: claude-sonnet-4-5-20250929
-  max_tokens_per_pr: 500000
-  agent_timeout_seconds: 300
+  engine: rule-based
   max_review_cycles_per_pr: 10
-  parallel_agents_step2: 4
-  daily_token_limit: 5000000
+
+# Allowed external APIs (whitelist)
+# - GitHub API (REST/GraphQL): PR操作、Checks、コメント
+# - Google Gemini 2.5 Flash: 将来のAI機能用（現在未使用）
+# 上記以外の外部AI API (OpenAI, Anthropic, Cohere, Azure OpenAI等) は禁止
+allowed_apis:
+  - github
+  - google-gemini-flash
 
 # PR comment settings
 comment:

@@ -30,12 +30,6 @@ export async function fetchPrRequirementsFiles(prNumber: number): Promise<PrFile
     let content: string | undefined;
     if (f.status !== 'removed') {
       try {
-        const { data } = await octokit.pulls.get({
-          ...repo,
-          pull_number: prNumber,
-          mediaType: { format: 'diff' },
-        });
-        // Get file content from the head branch
         const { data: fileData } = await octokit.repos.getContent({
           ...repo,
           path: f.filename,

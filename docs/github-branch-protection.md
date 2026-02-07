@@ -31,9 +31,9 @@ Enter: `main`
 
 - [x] **Require status checks to pass before merging**
   - [x] **Require branches to be up to date before merging**
-  - Search and add: `requirements-review`
+  - Search and add: `specforge-review-check`
 
-> **Note**: The `requirements-review` status check only appears after the workflow has run once. Create a test PR that modifies `requirements/` to trigger it.
+> **Note**: The `specforge-review-check` status check only appears after the workflow has run once. Create a test PR that modifies `requirements/` to trigger it.
 
 ### 5. Additional Settings
 
