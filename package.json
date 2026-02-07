@@ -5,10 +5,28 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "tsx watch server/src/index.ts",
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "review:local": "tsx server/src/cli/review-local.ts",
+    "review:pr": "tsx server/src/cli/review-pr.ts",
     "lint": "echo 'TODO: add linter'",
-    "test": "echo 'TODO: add tests'",
     "validate:schema": "node --input-type=module -e \"import{readFileSync}from'fs';const s=JSON.parse(readFileSync('data/schemas/structured-requirements.schema.json','utf8'));console.log('Schema OK:',s.title)\""
   },
   "keywords": ["requirements", "review", "ai", "specforge"],
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "hono": "^4.7.0",
+    "@hono/node-server": "^1.13.0",
+    "@octokit/rest": "^21.1.0",
+    "yaml": "^2.7.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.12.0"
+  }
 }
