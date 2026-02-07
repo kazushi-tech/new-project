@@ -1,0 +1,158 @@
+{
+  "project": {
+    "name": "OrganicMart",
+    "type": "ec-site",
+    "description": "Organic food direct-to-consumer e-commerce platform",
+    "target_users": ["Health-conscious consumers (30-50s)", "Organic food producers/farmers"],
+    "problem": "Organic food has limited distribution; consumers struggle to find it, producers lack sales channels",
+    "competitors": ["Oisix", "Tabechoku", "Pocket Marche"],
+    "revenue_model": "Sales commission (10-15%) + monthly listing fee"
+  },
+  "functional_requirements": [
+    {
+      "id": "FR-001",
+      "name": "Product Catalog",
+      "priority": "must",
+      "description": "Category-based product listing with search and filtering (origin, certification, price range)",
+      "source": "human",
+      "user_stories": [
+        "As a buyer, I want to filter products by origin and organic certification"
+      ],
+      "acceptance_criteria": [
+        "Products displayed by category (vegetables, fruits, processed goods, beverages)",
+        "Keyword search covers product name and description",
+        "Filtering by price range, origin, and certification marks"
+      ]
+    },
+    {
+      "id": "FR-002",
+      "name": "Cart & Purchase Flow",
+      "priority": "must",
+      "description": "Add to cart, quantity changes, coupon application, delivery date/time selection, purchase confirmation",
+      "source": "human",
+      "user_stories": [
+        "As a buyer, I want to purchase products from multiple producers in one order"
+      ],
+      "acceptance_criteria": [
+        "Add/remove products and change quantities in cart",
+        "Specify delivery address and delivery date/time",
+        "Order confirmation email sent after purchase"
+      ]
+    },
+    {
+      "id": "FR-003",
+      "name": "User Registration & Login",
+      "priority": "must",
+      "description": "Email registration, login, password reset. Social login support.",
+      "source": "human",
+      "user_stories": [
+        "As a buyer, I want to create an account to manage order history and favorites"
+      ],
+      "acceptance_criteria": [
+        "Register and login with email + password",
+        "Social login via Google / LINE",
+        "Password reset via email"
+      ]
+    },
+    {
+      "id": "FR-004",
+      "name": "Producer Dashboard",
+      "priority": "should",
+      "description": "Producer management screen for product registration, inventory management, and sales tracking",
+      "source": "human",
+      "user_stories": [
+        "As a producer, I want to register my products and track order status"
+      ],
+      "acceptance_criteria": [
+        "Register and edit product info (name, price, description, images)",
+        "Manage inventory counts",
+        "View order list and sales summary"
+      ]
+    },
+    {
+      "id": "FR-005",
+      "name": "Payment Integration",
+      "priority": "must",
+      "description": "Credit card payment (via Stripe), convenience store payment",
+      "source": "human",
+      "user_stories": [],
+      "acceptance_criteria": [
+        "Accept Visa / Mastercard / JCB payments",
+        "Support convenience store payment (7-Eleven, Lawson, FamilyMart)",
+        "Display appropriate error messages on payment failure"
+      ]
+    }
+  ],
+  "non_functional_requirements": {
+    "scale": "medium",
+    "concurrent_users": 500,
+    "security_level": "standard",
+    "devices": ["web"],
+    "performance": {
+      "response_time_ms": 2000
+    },
+    "items": [
+      {
+        "id": "NFR-001",
+        "category": "performance",
+        "description": "Product listing page loads within 2 seconds, search response within 500ms",
+        "source": "human",
+        "metric": "response_time",
+        "target_value": "2000ms (listing), 500ms (search)"
+      },
+      {
+        "id": "NFR-002",
+        "category": "security",
+        "description": "Payment via Stripe (PCI DSS compliant), DB encryption, SSL/TLS, JWT auth",
+        "source": "human",
+        "metric": "compliance",
+        "target_value": "PCI DSS (Stripe-delegated)"
+      },
+      {
+        "id": "NFR-003",
+        "category": "availability",
+        "description": "99.5% uptime, daily backup, RTO 4h, RPO 1h",
+        "source": "human",
+        "metric": "uptime",
+        "target_value": "99.5%"
+      }
+    ]
+  },
+  "user_roles": [
+    { "name": "Buyer", "permissions": ["browse", "cart", "order", "order_history", "favorites"] },
+    { "name": "Producer", "permissions": ["product_management", "inventory", "order_view", "sales_view"] },
+    { "name": "Admin", "permissions": ["all", "user_management", "sales_management", "coupon_management"] }
+  ],
+  "review_metadata": {
+    "draft_version": "1.0",
+    "intake_date": "2026-02-07",
+    "source_branch": "feat/requirements-ec-site-sample"
+  },
+  "ai_findings": [],
+  "unresolved_issues": [
+    {
+      "id": "ISS-001",
+      "description": "Delivery provider not selected (Yamato / Sagawa / Japan Post)",
+      "severity": "medium",
+      "detected_by": "human"
+    },
+    {
+      "id": "ISS-002",
+      "description": "Coupon and points system details undecided",
+      "severity": "medium",
+      "detected_by": "human"
+    },
+    {
+      "id": "ISS-003",
+      "description": "Producer vetting process not defined",
+      "severity": "high",
+      "detected_by": "human"
+    },
+    {
+      "id": "ISS-004",
+      "description": "Review/rating feature decision pending",
+      "severity": "low",
+      "detected_by": "human"
+    }
+  ]
+}

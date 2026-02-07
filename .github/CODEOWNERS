@@ -1,0 +1,10 @@
+# SpecForge Review - CODEOWNERS
+#
+# Requirements directory requires approval from designated owners.
+# IMPORTANT: Replace @REPLACE_ME_OWNER with actual GitHub username(s) or team(s).
+#
+# Examples:
+#   /requirements/ @your-username
+#   /requirements/ @your-org/product-owners @your-org/tech-leads
+
+/requirements/ @REPLACE_ME_OWNER

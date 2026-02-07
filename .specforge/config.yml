@@ -1,0 +1,51 @@
+# SpecForge Review Configuration
+# See: plans/abstract-floating-bubble.md
+
+# Review target paths
+review_paths:
+  - "requirements/**/*.md"
+
+# Agent configuration (Phase 1: single agent)
+agents:
+  phase1:
+    - name: requirements-analyst
+      enabled: true
+      description: "Requirements quality, completeness, and clarity review"
+  phase2_future:
+    - name: security-reviewer
+      enabled: false
+    - name: test-planner
+      enabled: false
+    - name: document-integrator
+      enabled: false
+
+# Review settings
+review:
+  model: claude-sonnet-4-5-20250929
+  max_tokens_per_pr: 500000
+  agent_timeout_seconds: 300
+  max_review_cycles_per_pr: 10
+  parallel_agents_step2: 4
+  daily_token_limit: 5000000
+
+# PR comment settings
+comment:
+  marker: "<!-- specforge-review -->"
+  update_existing: true
+
+# AI guardrails
+guardrails:
+  ai_can_approve: false
+  ai_review_mode: "COMMENT"  # COMMENT or REQUEST_CHANGES, never APPROVE
+  require_ai_proposal_tag: true
+  ai_proposal_prefix: "[AI提案]"
+  require_human_approval: true
+
+# Labels
+labels:
+  approval: "requirements-approved"
+
+# Branch naming convention
+branch_patterns:
+  feature: "feat/requirements-*"
+  fix: "fix/requirements-*"

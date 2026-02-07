@@ -1,0 +1,68 @@
+name: "Requirements / 要件起票"
+description: "新しい要件を起票するためのテンプレート"
+title: "[REQ] "
+labels: ["requirements"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 要件起票フォーム
+        以下の項目を記入して要件を起票してください。
+        起票後、`feat/requirements-*` ブランチで要件ドキュメントを作成し、PRを開いてください。
+
+  - type: input
+    id: requirement-id
+    attributes:
+      label: "要件ID / Requirement ID"
+      description: "機能要件: FR-XXX、非機能要件: NFR-XXX"
+      placeholder: "FR-001"
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: "背景・目的 / Background & Purpose"
+      description: "この要件が必要な背景と達成したい目的"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: "スコープ / Scope"
+      description: "対象範囲と対象外の範囲"
+      placeholder: |
+        対象:
+        - ...
+        対象外:
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: nfr
+    attributes:
+      label: "非機能要件 / Non-Functional Requirements"
+      description: "パフォーマンス、セキュリティ、可用性等"
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: "受入条件 / Acceptance Criteria"
+      description: "要件が満たされたと判断する条件"
+      placeholder: |
+        - [ ] 条件1
+        - [ ] 条件2
+    validations:
+      required: true
+
+  - type: textarea
+    id: open-items
+    attributes:
+      label: "未決定事項 / Open Items"
+      description: "未決定の事項や追加調査が必要な項目"
+    validations:
+      required: false
