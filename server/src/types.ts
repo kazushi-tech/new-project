@@ -14,19 +14,28 @@ export interface ReviewFinding {
 }
 
 // === Review Result ===
+export interface FileReviewSummary {
+  path: string;
+  findingCount: number;
+  qualityScore: number;
+  bySeverity: Record<Severity, number>;
+}
+
 export interface ReviewResult {
   metadata: {
     reviewId: string;
     timestamp: string;
-    source: { type: 'file' | 'pr'; path?: string; prNumber?: number };
+    source: { type: 'file' | 'pr'; path?: string; paths?: string[]; prNumber?: number };
     rulesApplied: string[];
   };
   summary: {
     totalFindings: number;
     bySeverity: Record<Severity, number>;
     qualityScore: number;
+    fileCount?: number;
   };
   findings: ReviewFinding[];
+  fileResults?: FileReviewSummary[];
 }
 
 // === Parsed Document ===

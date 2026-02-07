@@ -1,7 +1,8 @@
-import { runReview } from '../engine/review-engine.js';
+import { runReview, aggregateReviewResults } from '../engine/review-engine.js';
 import { saveReviewResult, generateMarkdownReport } from '../engine/report-generator.js';
 import { fetchPrRequirementsFiles } from '../github/pr-files.js';
 import { upsertReviewComment } from '../github/comment.js';
+import { createCheckRun, determineConclusion } from '../github/checks.js';
 
 function parseArgs(args: string[]): { pr?: number; dryRun: boolean } {
   let pr: number | undefined;
@@ -33,6 +34,12 @@ async function main() {
 
   if (files.length === 0) {
     console.log('No requirements files changed in this PR.');
+    const headSha = process.env.GITHUB_SHA;
+    if (headSha && !dryRun) {
+      console.log('Creating neutral Check Run (no requirements files)...');
+      await createCheckRun({ headSha, conclusion: 'neutral', title: 'No requirements files changed' });
+      console.log('Done.');
+    }
     return;
   }
 
@@ -58,19 +65,33 @@ async function main() {
     allResults.push(result);
   }
 
-  // Use the first result or merge
-  const result = allResults[0];
-  if (!result) {
+  if (allResults.length === 0) {
     console.log('No reviewable content found.');
+    const headSha = process.env.GITHUB_SHA;
+    if (headSha && !dryRun) {
+      await createCheckRun({ headSha, conclusion: 'neutral', title: 'No reviewable content found' });
+    }
     return;
   }
 
+  // Aggregate all results
+  const result = aggregateReviewResults(allResults);
+
   console.log('=== Review Summary ===');
   console.log(`Review ID: ${result.metadata.reviewId}`);
+  console.log(`Files reviewed: ${result.summary.fileCount ?? 1}`);
   console.log(`Total findings: ${result.summary.totalFindings}`);
   console.log(`Quality score: ${result.summary.qualityScore}/10`);
   console.log(`Severity breakdown:`, result.summary.bySeverity);
   console.log('');
+
+  if (result.fileResults && result.fileResults.length > 1) {
+    console.log('=== Per-File Summary ===');
+    for (const fr of result.fileResults) {
+      console.log(`  ${fr.path}: ${fr.findingCount} findings (score: ${fr.qualityScore}/10)`);
+    }
+    console.log('');
+  }
 
   for (const f of result.findings) {
     const target = f.target ? ` (${f.target})` : '';
@@ -93,6 +114,15 @@ async function main() {
     console.log('\nPosting PR comment...');
     await upsertReviewComment(pr, mdReport);
     console.log('Done.');
+
+    // Create Check Run (GitHub Actions only)
+    const headSha = process.env.GITHUB_SHA;
+    if (headSha) {
+      console.log('\nCreating GitHub Check Run...');
+      const conclusion = determineConclusion(result);
+      await createCheckRun({ headSha, result, conclusion });
+      console.log(`Check Run created: ${conclusion}`);
+    }
   }
 }
 

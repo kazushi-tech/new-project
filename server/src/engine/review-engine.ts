@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { ReviewResult, ReviewFinding, Severity } from '../types.js';
+import type { ReviewResult, ReviewFinding, Severity, FileReviewSummary } from '../types.js';
 import { parseRequirementsMarkdown } from './markdown-parser.js';
 import { runAllRules, getDefaultRules } from './rules/index.js';
 import { PROJECT_ROOT } from '../config.js';
@@ -36,6 +36,49 @@ function countBySeverity(findings: ReviewFinding[]): Record<Severity, number> {
     counts[f.severity]++;
   }
   return counts;
+}
+
+export function aggregateReviewResults(results: ReviewResult[]): ReviewResult {
+  if (results.length === 0) {
+    throw new Error('No review results to aggregate');
+  }
+
+  if (results.length === 1) {
+    return results[0];
+  }
+
+  const allFindings = assignFindingIds(results.flatMap(r => r.findings));
+
+  const fileResults: FileReviewSummary[] = results.map(r => ({
+    path: r.metadata.source.path ?? 'unknown',
+    findingCount: r.findings.length,
+    qualityScore: r.summary.qualityScore,
+    bySeverity: r.summary.bySeverity,
+  }));
+
+  const paths = results.map(r => r.metadata.source.path).filter(Boolean) as string[];
+  const prNumber = results[0].metadata.source.prNumber;
+
+  return {
+    metadata: {
+      reviewId: generateReviewId(),
+      timestamp: new Date().toISOString(),
+      source: {
+        type: 'pr',
+        paths,
+        prNumber,
+      },
+      rulesApplied: results[0].metadata.rulesApplied,
+    },
+    summary: {
+      totalFindings: allFindings.length,
+      bySeverity: countBySeverity(allFindings),
+      qualityScore: calculateQualityScore(allFindings),
+      fileCount: results.length,
+    },
+    findings: allFindings,
+    fileResults,
+  };
 }
 
 export interface ReviewOptions {

@@ -32,6 +32,9 @@ vi.mock('../../src/github/client.js', () => ({
       listComments: vi.fn().mockResolvedValue({ data: [] }),
       createComment: vi.fn().mockResolvedValue({ data: { id: 100 } }),
     },
+    checks: {
+      create: vi.fn().mockResolvedValue({ data: { id: 12345, status: 'completed' } }),
+    },
   })),
   getRepoParams: vi.fn(() => ({ owner: 'kazushi-tech', repo: 'new-project' })),
 }));
@@ -43,12 +46,14 @@ vi.mock('../../src/config.js', async (importOriginal) => {
     env: {
       ...mod.env,
       githubToken: 'test-token',
+      githubWebhookSecret: '',
+      nodeEnv: 'test',
     },
   };
 });
 
 describe('Webhook Integration Flow', () => {
-  it('should process pull_request event and return review result', async () => {
+  it('should process pull_request event and return review result with check', async () => {
     const payload = {
       action: 'opened',
       pull_request: {
@@ -72,6 +77,9 @@ describe('Webhook Integration Flow', () => {
     expect(json.reviewId).toMatch(/^rev-/);
     expect(json.summary).toBeDefined();
     expect(json.summary.totalFindings).toBeGreaterThanOrEqual(0);
+    expect(json.check).toBeDefined();
+    expect(json.check.id).toBe(12345);
+    expect(json.check.conclusion).toMatch(/^(failure|neutral)$/);
   });
 
   it('should skip non-pull_request events', async () => {

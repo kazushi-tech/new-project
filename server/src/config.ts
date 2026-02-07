@@ -37,6 +37,7 @@ export const env = {
   githubToken: process.env.GITHUB_TOKEN ?? '',
   githubOwner: process.env.GITHUB_OWNER ?? 'kazushi-tech',
   githubRepo: process.env.GITHUB_REPO ?? 'new-project',
+  githubWebhookSecret: process.env.GITHUB_WEBHOOK_SECRET ?? '',
   port: Number(process.env.PORT ?? 3000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
 } as const;

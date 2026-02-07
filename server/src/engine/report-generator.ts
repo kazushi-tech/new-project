@@ -26,7 +26,7 @@ export function saveReviewResult(result: ReviewResult): { jsonPath: string; mark
 }
 
 export function generateMarkdownReport(result: ReviewResult): string {
-  const { metadata, summary, findings } = result;
+  const { metadata, summary, findings, fileResults } = result;
   const marker = specForgeConfig.comment.marker;
   const prefix = specForgeConfig.guardrails.aiProposalPrefix;
 
@@ -36,17 +36,31 @@ export function generateMarkdownReport(result: ReviewResult): string {
     '',
     `> Reviewed: ${metadata.timestamp} | ReviewID: ${metadata.reviewId}`,
     '',
-    '### Quality Score',
-    '',
-    `**総合スコア: ${summary.qualityScore} / 10**`,
-    '',
-    '| Severity | Count |',
-    '|----------|-------|',
-    ...(['critical', 'high', 'medium', 'low'] as Severity[]).map(
-      s => `| ${s} | ${summary.bySeverity[s]} |`
-    ),
-    '',
   ];
+
+  // Per-file breakdown for multi-file reviews
+  if (fileResults && fileResults.length > 1) {
+    lines.push('### Files Reviewed');
+    lines.push('');
+    lines.push('| File | Findings | Score |');
+    lines.push('|------|----------|-------|');
+    for (const f of fileResults) {
+      lines.push(`| \`${f.path}\` | ${f.findingCount} | ${f.qualityScore}/10 |`);
+    }
+    lines.push('');
+  }
+
+  const fileCountNote = summary.fileCount && summary.fileCount > 1 ? ` (${summary.fileCount} ファイルを集約)` : '';
+  lines.push('### Quality Score');
+  lines.push('');
+  lines.push(`**総合スコア: ${summary.qualityScore} / 10**${fileCountNote}`);
+  lines.push('');
+  lines.push('| Severity | Count |');
+  lines.push('|----------|-------|');
+  for (const s of ['critical', 'high', 'medium', 'low'] as Severity[]) {
+    lines.push(`| ${s} | ${summary.bySeverity[s]} |`);
+  }
+  lines.push('');
 
   // Group findings by severity
   for (const sev of ['critical', 'high', 'medium', 'low'] as Severity[]) {
