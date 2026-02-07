@@ -57,7 +57,7 @@ Create a `requirements-approved` label for manual approval tracking:
 
 1. Try direct push to `main` - should be rejected
 2. Create a PR modifying `requirements/` - should show required checks
-3. Verify `requirements-review` appears as required status check
+3. Verify `specforge-review-check` appears as required status check
 4. Verify CODEOWNERS are auto-requested as reviewers
 
 ## Troubleshooting
