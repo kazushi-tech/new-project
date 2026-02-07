@@ -43,11 +43,14 @@ jobs:
       - name: Post or update review comment
         if: steps.changed.outputs.count != '0'
         uses: actions/github-script@v7
+        env:
+          REQ_COUNT: ${{ steps.changed.outputs.count }}
+          REQ_FILE_TABLE: ${{ steps.changed.outputs.list }}
         with:
           script: |
             const marker = '<!-- specforge-review -->';
-            const count = parseInt('${{ steps.changed.outputs.count }}', 10);
-            const fileTable = `${{ steps.changed.outputs.list }}`;
+            const count = parseInt(process.env.REQ_COUNT, 10);
+            const fileTable = process.env.REQ_FILE_TABLE;
             const sha = context.payload.pull_request.head.sha.substring(0, 7);
             const now = new Date().toISOString();
 
