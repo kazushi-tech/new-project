@@ -117,6 +117,8 @@ BASE_URL=https://<service-name>.onrender.com \
    BASE_URL=https://<service-name>.onrender.com npm run smoke:remote
    ```
 
+4. **CI 経由の確認**: GitHub Actions > **Render Smoke Test** > Run workflow（Secrets: `RENDER_BASE_URL`、`ADMIN_UI_TOKEN`）
+
 ---
 
 ## 5. ロールバック

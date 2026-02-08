@@ -96,7 +96,20 @@ BASE_URL=https://<service-name>.onrender.com \
   npm run smoke:remote
 ```
 
-### 5.3 Admin UI 確認
+### 5.3 GitHub Actions による自動実行
+
+GitHub Actions の `Render Smoke Test` ワークフロー（`workflow_dispatch`）で実行可能。
+
+**必要な GitHub Secrets:**
+
+- `RENDER_BASE_URL` — Render サービス URL（例: `https://specforge-review.onrender.com`）
+- `ADMIN_UI_TOKEN` — Admin UI トークン
+
+**実行方法:** GitHub リポジトリ > Actions > **Render Smoke Test** > **Run workflow**
+
+URL を一時的に変更する場合は `base_url` 入力でオーバーライド可能。
+
+### 5.4 Admin UI 確認
 
 ブラウザで `https://<service-name>.onrender.com/admin` にアクセスし、`ADMIN_UI_TOKEN` でログイン。
 
