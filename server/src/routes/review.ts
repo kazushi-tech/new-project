@@ -15,13 +15,14 @@ review.post('/api/review/run', async (c) => {
       return c.json({ error: 'filePath is required when source is "file"' }, 400);
     }
 
-    const result = runReview({ source: 'file', filePath: body.filePath });
+    const result = await runReview({ source: 'file', filePath: body.filePath });
 
     if (body.dryRun) {
       return c.json({
         reviewId: result.metadata.reviewId,
         summary: result.summary,
         findings: result.findings,
+        metadata: { reviewProvider: result.metadata.reviewProvider },
         markdownPreview: generateMarkdownReport(result),
       });
     }
@@ -31,6 +32,7 @@ review.post('/api/review/run', async (c) => {
       reviewId: result.metadata.reviewId,
       summary: result.summary,
       findings: result.findings,
+      metadata: { reviewProvider: result.metadata.reviewProvider },
       report: paths,
     });
   }
@@ -51,7 +53,7 @@ review.post('/api/review/run', async (c) => {
       return c.json({ status: 'skipped', reason: 'no reviewable content found' });
     }
 
-    const result = runReview({
+    const result = await runReview({
       source: 'pr',
       filePath: targetFile.filename,
       prNumber: body.prNumber,
@@ -63,6 +65,7 @@ review.post('/api/review/run', async (c) => {
         reviewId: result.metadata.reviewId,
         summary: result.summary,
         findings: result.findings,
+        metadata: { reviewProvider: result.metadata.reviewProvider },
         markdownPreview: generateMarkdownReport(result),
       });
     }
@@ -75,6 +78,7 @@ review.post('/api/review/run', async (c) => {
       reviewId: result.metadata.reviewId,
       summary: result.summary,
       findings: result.findings,
+      metadata: { reviewProvider: result.metadata.reviewProvider },
       report: paths,
       comment: commentResult,
     });

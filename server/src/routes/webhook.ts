@@ -44,7 +44,7 @@ webhook.post('/api/webhooks/github', verifyGithubSignature, async (c) => {
   const allResults = [];
   for (const file of files) {
     if (!file.content) continue;
-    const result = runReview({
+    const result = await runReview({
       source: 'pr',
       filePath: file.filename,
       prNumber,

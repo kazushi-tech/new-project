@@ -1,14 +1,15 @@
 import { Hono } from 'hono';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { PROJECT_ROOT } from '../config.js';
+import { parse as parseYaml } from 'yaml';
+import { PROJECT_ROOT, getReviewProviderConfig } from '../config.js';
+import { verifyAdminToken } from '../middleware/verify-admin-token.js';
 
 const publicApi = new Hono();
 
 publicApi.get('/api/public/status', (c) => {
   let allowedApis: string[] = ['github', 'google-gemini-flash'];
   try {
-    const { parse: parseYaml } = require('yaml');
     const configPath = path.resolve(PROJECT_ROOT, '.specforge', 'config.yml');
     const raw = readFileSync(configPath, 'utf-8');
     const yml = parseYaml(raw);
@@ -19,16 +20,20 @@ publicApi.get('/api/public/status', (c) => {
     // fallback to defaults
   }
 
+  const providerConfig = getReviewProviderConfig();
+
   return c.json({
     service: 'ok',
-    engine: 'rule-based',
+    engine: providerConfig.effective,
+    configuredProvider: providerConfig.configured,
+    effectiveProvider: providerConfig.effective,
     allowedApis,
-    geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    geminiConfigured: providerConfig.geminiConfigured,
     timestamp: new Date().toISOString(),
   });
 });
 
-publicApi.get('/api/public/reviews/latest', (c) => {
+publicApi.get('/api/public/reviews/latest', verifyAdminToken, (c) => {
   const reviewsDir = path.resolve(PROJECT_ROOT, 'reviews');
   const MAX_LENGTH = 4096;
 

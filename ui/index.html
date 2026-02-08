@@ -51,6 +51,19 @@
     </div>
   </main>
 
+  <div id="login-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Admin Token Required</h2>
+      <form id="login-form">
+        <input type="password" id="token-input" placeholder="Enter admin token" required autocomplete="off" />
+        <div class="modal-actions">
+          <button type="submit">Login</button>
+        </div>
+      </form>
+      <div id="login-error" class="error hidden"></div>
+    </div>
+  </div>
+
   <script src="/ui/app.js"></script>
 </body>
 </html>

@@ -1,7 +1,29 @@
 (function () {
   'use strict';
 
+  var TOKEN_KEY = 'adminToken';
   var refreshBtn = document.getElementById('refresh-btn');
+  var loginModal = document.getElementById('login-modal');
+  var loginForm = document.getElementById('login-form');
+  var tokenInput = document.getElementById('token-input');
+
+  function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY);
+  }
+
+  function getAuthHeaders() {
+    var token = getToken();
+    return token ? { 'x-admin-token': token } : {};
+  }
+
+  function handleAuthError(res) {
+    if (res.status === 401 || res.status === 503) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      show('login-modal');
+      return true;
+    }
+    return false;
+  }
 
   function setText(id, text) {
     var el = document.getElementById(id);
@@ -62,7 +84,15 @@
     hide('review-error');
 
     try {
-      var res = await fetch('/api/public/reviews/latest');
+      var res = await fetch('/api/public/reviews/latest', {
+        headers: getAuthHeaders(),
+      });
+
+      if (handleAuthError(res)) {
+        hide('review-loading');
+        return;
+      }
+
       if (res.status === 404) {
         hide('review-loading');
         setText('review-error', 'No review reports found.');
@@ -96,6 +126,17 @@
       refreshBtn.disabled = false;
     });
   }
+
+  // Login form handling
+  loginForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var token = tokenInput.value.trim();
+    if (!token) return;
+    sessionStorage.setItem(TOKEN_KEY, token);
+    hide('login-modal');
+    hide('login-error');
+    refreshAll();
+  });
 
   refreshBtn.addEventListener('click', refreshAll);
 

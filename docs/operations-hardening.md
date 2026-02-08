@@ -11,7 +11,7 @@ SpecForge Review の本番運用に必要なセキュリティ・コスト管理
 |-----|-----------|------|----------|
 | GitHub REST API | GitHub | PR操作、Checks、コメント | `GITHUB_TOKEN`（自動付与） |
 | GitHub GraphQL API | GitHub | 将来拡張用（現在未使用） | `GITHUB_TOKEN` |
-| Google Gemini 2.5 Flash | Google | 将来のAIレビュー機能用（現在未使用） | `GEMINI_API_KEY`（GitHub Secrets） |
+| Google Gemini 2.5 Flash | Google | AIレビューエンジン（`REVIEW_PROVIDER=gemini` 時） | `GEMINI_API_KEY`（GitHub Secrets） |
 
 ## 2. 禁止API一覧
 
@@ -43,9 +43,91 @@ SpecForge Review の本番運用に必要なセキュリティ・コスト管理
 |-----------|------|------|
 | `GITHUB_TOKEN` | 自動 | GitHub Actions自動付与（設定不要） |
 | `GITHUB_WEBHOOK_SECRET` | Webhook使用時 | Webhook HMAC検証用ランダム文字列 |
-| `GEMINI_API_KEY` | AI機能使用時 | Google Gemini API キー（将来用） |
+| `GEMINI_API_KEY` | `REVIEW_PROVIDER=gemini` 時 | Google Gemini API キー |
+| `REVIEW_PROVIDER` | 任意 | レビュープロバイダ選択（`auto`/`gemini`/`rule-based`、デフォルト: `auto`） |
+| `ADMIN_UI_TOKEN` | Admin UI使用時 | Admin UI/APIアクセス制御用トークン |
 
 > **重要**: 個人PAT（`ghp_*`）をSecretsに登録しない。`GITHUB_TOKEN` を優先使用する。
+
+### ADMIN_UI_TOKEN 設定
+
+Admin UI およびレビュー詳細APIへのアクセス制御に使用するトークン。
+
+**設計判断**: UIシェル（HTML/CSS/JS）には機密データを含まないため、データ保護はAPI層で実施する。本番で `ADMIN_UI_TOKEN` 未設定時のみ、静的ファイルも含めて503で遮断する。
+
+**開発環境（NODE_ENV=development）**:
+
+- 未設定時: 警告ログを出力し、アクセス許可
+- 設定時: `x-admin-token` ヘッダーでの認証が必要
+
+**本番環境（NODE_ENV=production）**:
+
+- 未設定時: `/admin`, `/ui/*`, `/api/public/reviews/latest` へのアクセスを拒否（503）
+- 設定時: `/api/public/reviews/latest` は `x-admin-token` ヘッダー必須（401）
+
+**保護されるエンドポイント**:
+
+- `GET /api/public/reviews/latest` — トークン認証（`x-admin-token` ヘッダー）
+- `GET /admin`, `GET /ui/*` — 本番+TOKEN未設定時のみ503
+
+**公開エンドポイント（認証不要）**:
+
+- `GET /api/public/status` — サービスステータス
+
+**トークン生成方法**:
+```bash
+openssl rand -base64 32
+```
+
+**GitHub Actions Secrets 設定**:
+
+1. リポジトリ > Settings > Secrets and variables > Actions
+2. New repository secret をクリック
+3. Name: `ADMIN_UI_TOKEN` / Value: 生成したトークン
+4. Add secret をクリック
+
+**Admin UI アクセス方法**:
+
+1. ブラウザで `/admin` にアクセス
+2. ログインプロンプトにトークンを入力
+3. トークンは sessionStorage に保存（タブを閉じると削除）
+
+### Gemini 最小運用 `.env` 例
+
+```env
+PORT=3000
+NODE_ENV=production
+ADMIN_UI_TOKEN=<生成したトークン>
+REVIEW_PROVIDER=auto
+GEMINI_API_KEY=<Google AI Studio で取得したキー>
+```
+
+- `REVIEW_PROVIDER=auto`: `GEMINI_API_KEY` が設定されていれば Gemini を使用、未設定なら rule-based にフォールバック
+- `REVIEW_PROVIDER=gemini`: Gemini を明示指定。本番で `GEMINI_API_KEY` 未設定時は起動失敗
+- `REVIEW_PROVIDER=rule-based`: Gemini を使わず rule-based のみで動作
+- GitHub連携変数（`GITHUB_TOKEN` 等）は任意。GitHub機能を使わない場合は不要
+
+### フォールバック仕様
+
+Gemini API が失敗した場合、自動的に rule-based エンジンにフォールバックする。
+
+- フォールバック発生時はサーバログに `[review-engine] Gemini failed, falling back to rule-based` と出力
+- レビュー結果の `metadata.reviewProvider` にフォールバック情報を記録:
+  - `fallbackUsed: true`
+  - `fallbackReason`: エラーの分類と詳細メッセージ
+- `GET /api/public/status` の `effectiveProvider` でフォールバック状態を確認可能
+
+**監視ポイント**:
+
+- `effectiveProvider` が `configuredProvider` と異なる場合、フォールバックが発生中
+- `fallbackReason` に `auth_failure` が含まれる場合、APIキーの確認が必要
+- `fallbackReason` に `rate_limit` が含まれる場合、APIクォータの確認が必要
+
+### Admin 認証ヘッダー仕様
+
+- 正規仕様: `x-admin-token` ヘッダー
+- `Authorization: Bearer` は現仕様では利用しない
+- レスポンスの `Cache-Control: no-store` により認証済みデータのキャッシュを防止
 
 ### NODE_ENV 設定
 
@@ -139,7 +221,7 @@ timeout-minutes: 5
 5. `GITHUB_WEBHOOK_SECRET` を新しい値で更新
 6. Webhookサーバを再起動（使用している場合）
 
-### 6.2 GEMINI_API_KEY のローテーション（将来用）
+### 6.2 GEMINI_API_KEY のローテーション
 
 1. [Google AI Studio](https://aistudio.google.com/apikey) で新しいAPIキーを生成
 2. 旧キーを無効化
@@ -152,6 +234,7 @@ timeout-minutes: 5
 |------|----------|----------------------|
 | `GITHUB_WEBHOOK_SECRET` | 90日ごと | 漏洩疑い時 |
 | `GEMINI_API_KEY` | 90日ごと | 漏洩疑い、異常利用検知時 |
+| `ADMIN_UI_TOKEN` | 90日ごと | 漏洩疑い時 |
 | `GITHUB_TOKEN` | 自動管理 | ローテーション不要（Actions自動付与） |
 
 ---
@@ -181,3 +264,58 @@ timeout-minutes: 5
 | Webhook 401エラー | `GITHUB_WEBHOOK_SECRET` 不一致 | キーローテーション手順を実施 |
 | API rate limit | 短時間に大量PR | concurrency制御で自動緩和 |
 | タイムアウト（5分） | レビュー対象が大きすぎる | ファイル上限で自動スキップ |
+| Admin UI 503エラー | 本番で `ADMIN_UI_TOKEN` 未設定 | Secrets に `ADMIN_UI_TOKEN` を登録 |
+| Admin UI 401エラー | トークン不一致 | 正しいトークンで再ログイン |
+
+---
+
+## 9. デプロイ前スモークテスト
+
+### 実行手順
+
+```bash
+# 1. ビルド
+npm run build
+
+# 2. ユニット / 統合テスト
+npm test
+
+# 3. スモークテスト一括実行（通常系 + フォールバック）
+npm run smoke:go-live
+```
+
+### デプロイ前チェック表
+
+| チェック | コマンド | 合格基準 |
+|----------|----------|----------|
+| ビルド | `npm run build` | exit 0 |
+| テスト | `npm test` | 全件 PASS |
+| Gemini 通常系 | `npm run smoke:gemini` | 全 PASS、`fallbackUsed !== true` |
+| フォールバック | `npm run smoke:fallback` | 全 PASS、`fallbackUsed === true` |
+
+### `configuredProvider` と `effectiveProvider` の乖離時フロー
+
+`GET /api/public/status` で `effectiveProvider` が `configuredProvider` と異なる場合:
+
+1. **即時確認**: サーバーログで `[review-engine] Gemini failed, falling back to rule-based` を検索
+2. **原因分類**:
+   - `auth_failure` → `GEMINI_API_KEY` が無効。キーローテーション（§6.2）を実施
+   - `rate_limit` → API クォータ超過。Google AI Studio でクォータ確認
+   - `timeout` → ネットワーク障害 or Gemini 側障害。時間をおいて再確認
+3. **一時対応**: `REVIEW_PROVIDER=rule-based` に切り替えてデプロイ
+4. **恒久対応**: 原因解消後に `REVIEW_PROVIDER=auto` に戻す
+
+### CI での `smoke:gemini:ci` ポリシー
+
+| 条件 | 挙動 | exit code |
+|------|------|-----------|
+| `GEMINI_API_KEY` 設定済み | 通常実行 | 成功: 0 / 失敗: 1 |
+| `GEMINI_API_KEY` 未設定 | `[SKIP]` 表示 | 0（CI を止めない） |
+
+CI ワークフローでの推奨設定:
+```yaml
+- name: Smoke test (Gemini)
+  run: npm run smoke:gemini:ci
+  env:
+    GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+```

@@ -26,7 +26,7 @@ async function main() {
   console.log(`\nReviewing: ${file}`);
   console.log(`Dry-run: ${dryRun}\n`);
 
-  const result = runReview({ source: 'file', filePath: file });
+  const result = await runReview({ source: 'file', filePath: file });
 
   console.log('=== Review Summary ===');
   console.log(`Review ID: ${result.metadata.reviewId}`);

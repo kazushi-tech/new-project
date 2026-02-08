@@ -1,5 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { app } from '../../src/app.js';
+
+// Mutable mock env - reset in beforeEach to prevent test pollution
+const mockEnv = vi.hoisted(() => ({
+  githubToken: '',
+  githubOwner: 'test',
+  githubRepo: 'test',
+  githubWebhookSecret: '',
+  port: 3000,
+  nodeEnv: 'development',
+  adminUiToken: 'test-token',
+  geminiApiKey: '',
+  reviewProviderRaw: 'auto' as 'auto' | 'gemini' | 'rule-based',
+}));
+
+vi.mock('../../src/config.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/config.js')>();
+  return {
+    ...actual,
+    env: mockEnv,
+    getReviewProviderConfig: () => {
+      const geminiConfigured = Boolean(mockEnv.geminiApiKey);
+      let configured: 'gemini' | 'rule-based';
+      if (mockEnv.reviewProviderRaw === 'auto') {
+        configured = geminiConfigured ? 'gemini' : 'rule-based';
+      } else {
+        configured = mockEnv.reviewProviderRaw as 'gemini' | 'rule-based';
+      }
+      const effective = (configured === 'gemini' && !geminiConfigured)
+        ? 'rule-based'
+        : configured;
+      return { configured, effective, geminiConfigured };
+    },
+  };
+});
 
 // Mock GitHub modules to prevent import errors
 vi.mock('../../src/github/client.js', () => ({
@@ -39,7 +72,13 @@ vi.mock('node:fs', async (importOriginal) => {
   };
 });
 
+import { app } from '../../src/app.js';
+
 beforeEach(() => {
+  mockEnv.adminUiToken = 'test-token';
+  mockEnv.nodeEnv = 'development';
+  mockEnv.geminiApiKey = '';
+  mockEnv.reviewProviderRaw = 'auto';
   mockReaddirSync.mockReset();
   mockStatSync.mockReset();
   mockReadFileSync.mockReset();
@@ -53,6 +92,8 @@ describe('GET /api/public/status', () => {
     const body = await res.json();
     expect(body.service).toBe('ok');
     expect(body.engine).toBe('rule-based');
+    expect(body.configuredProvider).toBe('rule-based');
+    expect(body.effectiveProvider).toBe('rule-based');
     expect(body.allowedApis).toBeInstanceOf(Array);
     expect(typeof body.geminiConfigured).toBe('boolean');
     expect(typeof body.timestamp).toBe('string');
@@ -67,26 +108,56 @@ describe('GET /api/public/status', () => {
   });
 
   it('reports geminiConfigured as false when no key is set', async () => {
-    delete process.env.GEMINI_API_KEY;
+    mockEnv.geminiApiKey = '';
     const res = await app.request('/api/public/status');
     const body = await res.json();
     expect(body.geminiConfigured).toBe(false);
+    expect(body.configuredProvider).toBe('rule-based');
+    expect(body.effectiveProvider).toBe('rule-based');
   });
 
   it('reports geminiConfigured as true when key is set', async () => {
-    process.env.GEMINI_API_KEY = 'test-key-value';
+    mockEnv.geminiApiKey = 'test-key-value';
     const res = await app.request('/api/public/status');
     const body = await res.json();
     expect(body.geminiConfigured).toBe(true);
+    expect(body.configuredProvider).toBe('gemini');
+    expect(body.effectiveProvider).toBe('gemini');
     const text = JSON.stringify(body);
     expect(text).not.toContain('test-key-value');
-    delete process.env.GEMINI_API_KEY;
+  });
+
+  it('reports rule-based when provider is explicitly set to rule-based', async () => {
+    mockEnv.geminiApiKey = 'test-key';
+    mockEnv.reviewProviderRaw = 'rule-based';
+    const res = await app.request('/api/public/status');
+    const body = await res.json();
+    expect(body.configuredProvider).toBe('rule-based');
+    expect(body.effectiveProvider).toBe('rule-based');
+    expect(body.geminiConfigured).toBe(true);
+  });
+
+  it('falls back to rule-based when gemini configured but no API key', async () => {
+    mockEnv.geminiApiKey = '';
+    mockEnv.reviewProviderRaw = 'gemini';
+    const res = await app.request('/api/public/status');
+    const body = await res.json();
+    expect(body.configuredProvider).toBe('gemini');
+    expect(body.effectiveProvider).toBe('rule-based');
+    expect(body.geminiConfigured).toBe(false);
+  });
+
+  it('is accessible without x-admin-token header', async () => {
+    const res = await app.request('/api/public/status');
+    expect(res.status).toBe(200);
   });
 });
 
 describe('GET /api/public/reviews/latest', () => {
   it('returns latest review when reports exist', async () => {
-    const res = await app.request('/api/public/reviews/latest');
+    const res = await app.request('/api/public/reviews/latest', {
+      headers: { 'x-admin-token': 'test-token' },
+    });
     expect([200, 404]).toContain(res.status);
 
     const body = await res.json();
@@ -103,7 +174,9 @@ describe('GET /api/public/reviews/latest', () => {
   it('returns 404 with error message when no reports exist', async () => {
     mockReaddirSync.mockImplementation(() => []);
 
-    const res = await app.request('/api/public/reviews/latest');
+    const res = await app.request('/api/public/reviews/latest', {
+      headers: { 'x-admin-token': 'test-token' },
+    });
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body.error).toBeDefined();
@@ -132,10 +205,34 @@ describe('GET /api/public/reviews/latest', () => {
       throw new Error('ENOENT');
     });
 
-    const res = await app.request('/api/public/reviews/latest');
+    const res = await app.request('/api/public/reviews/latest', {
+      headers: { 'x-admin-token': 'test-token' },
+    });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.truncated).toBe(true);
     expect(body.content.length).toBe(4096);
+  });
+
+  it('returns 401 when x-admin-token header is missing', async () => {
+    const res = await app.request('/api/public/reviews/latest');
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error).toBe('Unauthorized');
+  });
+
+  it('returns 401 when x-admin-token is invalid', async () => {
+    const res = await app.request('/api/public/reviews/latest', {
+      headers: { 'x-admin-token': 'wrong-token' },
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 503 in production when token is not configured', async () => {
+    mockEnv.adminUiToken = '';
+    mockEnv.nodeEnv = 'production';
+
+    const res = await app.request('/api/public/reviews/latest');
+    expect(res.status).toBe(503);
   });
 });

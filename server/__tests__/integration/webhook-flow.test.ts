@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock gemini adapter to prevent real API calls
+vi.mock('../../src/ai/gemini-adapter.js', () => ({
+  runGeminiReview: vi.fn(),
+}));
+
 import { app } from '../../src/app.js';
 
 // Mock GitHub modules

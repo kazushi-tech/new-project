@@ -56,7 +56,7 @@ async function main() {
       console.log(`  Skipping ${file.filename} (no content available)`);
       continue;
     }
-    const result = runReview({
+    const result = await runReview({
       source: 'pr',
       filePath: file.filename,
       prNumber: pr,
