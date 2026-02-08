@@ -1,4 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// Mock gemini adapter to prevent module loading issues
+vi.mock('../../../src/ai/gemini-adapter.js', () => ({
+  runGeminiReview: vi.fn(),
+}));
+
 import { aggregateReviewResults } from '../../../src/engine/review-engine.js';
 import type { ReviewResult } from '../../../src/types.js';
 

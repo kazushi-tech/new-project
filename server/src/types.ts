@@ -21,12 +21,20 @@ export interface FileReviewSummary {
   bySeverity: Record<Severity, number>;
 }
 
+export interface ReviewProviderMetadata {
+  configuredProvider: 'gemini' | 'rule-based';
+  effectiveProvider: 'gemini' | 'rule-based';
+  fallbackUsed: boolean;
+  fallbackReason?: string;
+}
+
 export interface ReviewResult {
   metadata: {
     reviewId: string;
     timestamp: string;
     source: { type: 'file' | 'pr'; path?: string; paths?: string[]; prNumber?: number };
     rulesApplied: string[];
+    reviewProvider?: ReviewProviderMetadata;
   };
   summary: {
     totalFindings: number;

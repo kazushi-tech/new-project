@@ -3,7 +3,10 @@ import path from 'node:path';
 import type { ReviewResult, ReviewFinding, Severity, FileReviewSummary } from '../types.js';
 import { parseRequirementsMarkdown } from './markdown-parser.js';
 import { runAllRules, getDefaultRules } from './rules/index.js';
-import { PROJECT_ROOT } from '../config.js';
+import { PROJECT_ROOT, env, getReviewProviderConfig } from '../config.js';
+import type { ReviewProviderType } from '../config.js';
+import { runGeminiReview } from '../ai/gemini-adapter.js';
+import { GeminiError } from '../ai/types.js';
 
 const SEVERITY_WEIGHT: Record<Severity, number> = {
   critical: 2,
@@ -69,6 +72,7 @@ export function aggregateReviewResults(results: ReviewResult[]): ReviewResult {
         prNumber,
       },
       rulesApplied: results[0].metadata.rulesApplied,
+      reviewProvider: results[0].metadata.reviewProvider,
     },
     summary: {
       totalFindings: allFindings.length,
@@ -85,10 +89,25 @@ export interface ReviewOptions {
   source: 'file' | 'pr';
   filePath?: string;
   prNumber?: number;
-  content?: string; // directly provided markdown content
+  content?: string;
 }
 
-export function runReview(opts: ReviewOptions): ReviewResult {
+export interface ReviewMetadata {
+  configuredProvider: ReviewProviderType;
+  effectiveProvider: ReviewProviderType;
+  fallbackUsed: boolean;
+  fallbackReason?: string;
+}
+
+function runRuleBasedReview(content: string): { findings: ReviewFinding[]; rulesApplied: string[] } {
+  const doc = parseRequirementsMarkdown(content);
+  const rawFindings = runAllRules(doc, getDefaultRules());
+  const findings = assignFindingIds(rawFindings);
+  const rules = getDefaultRules();
+  return { findings, rulesApplied: rules.map(r => r.id) };
+}
+
+export async function runReview(opts: ReviewOptions): Promise<ReviewResult> {
   let content: string;
 
   if (opts.content) {
@@ -102,10 +121,45 @@ export function runReview(opts: ReviewOptions): ReviewResult {
     throw new Error('Either filePath or content must be provided');
   }
 
-  const doc = parseRequirementsMarkdown(content);
-  const rawFindings = runAllRules(doc, getDefaultRules());
-  const findings = assignFindingIds(rawFindings);
-  const rules = getDefaultRules();
+  const providerConfig = getReviewProviderConfig();
+  let effectiveProvider = providerConfig.effective;
+  let fallbackUsed = false;
+  let fallbackReason: string | undefined;
+  let findings: ReviewFinding[];
+  let rulesApplied: string[];
+
+  if (effectiveProvider === 'gemini') {
+    try {
+      const aiResult = await runGeminiReview(env.geminiApiKey, {
+        content,
+        filePath: opts.filePath,
+      });
+      findings = aiResult.findings;
+      rulesApplied = ['ai-review'];
+    } catch (err) {
+      const reason = err instanceof GeminiError
+        ? `${err.category}: ${err.message}`
+        : `unknown: ${(err as Error).message}`;
+      console.error(`[review-engine] Gemini failed, falling back to rule-based: ${reason}`);
+      fallbackUsed = true;
+      fallbackReason = reason;
+      effectiveProvider = 'rule-based';
+      const ruleResult = runRuleBasedReview(content);
+      findings = ruleResult.findings;
+      rulesApplied = ruleResult.rulesApplied;
+    }
+  } else {
+    const ruleResult = runRuleBasedReview(content);
+    findings = ruleResult.findings;
+    rulesApplied = ruleResult.rulesApplied;
+  }
+
+  const reviewProvider: ReviewMetadata = {
+    configuredProvider: providerConfig.configured,
+    effectiveProvider,
+    fallbackUsed,
+    fallbackReason,
+  };
 
   return {
     metadata: {
@@ -116,7 +170,8 @@ export function runReview(opts: ReviewOptions): ReviewResult {
         path: opts.filePath,
         prNumber: opts.prNumber,
       },
-      rulesApplied: rules.map(r => r.id),
+      rulesApplied,
+      reviewProvider,
     },
     summary: {
       totalFindings: findings.length,

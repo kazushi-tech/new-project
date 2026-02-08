@@ -11,22 +11,36 @@
     "test:watch": "vitest",
     "review:local": "tsx server/src/cli/review-local.ts",
     "review:pr": "tsx server/src/cli/review-pr.ts",
+    "smoke:gemini": "tsx server/scripts/smoke-gemini.ts",
+    "smoke:gemini:ci": "tsx server/scripts/smoke-gemini.ts --ci",
+    "smoke:fallback": "tsx server/scripts/smoke-fallback.ts",
+    "smoke:go-live": "npm run smoke:gemini && npm run smoke:fallback",
+    "smoke:remote": "tsx server/scripts/smoke-remote.ts",
     "lint": "echo 'TODO: add linter'",
     "validate:schema": "node --input-type=module -e \"import{readFileSync}from'fs';const s=JSON.parse(readFileSync('data/schemas/structured-requirements.schema.json','utf8'));console.log('Schema OK:',s.title)\""
   },
-  "keywords": ["requirements", "review", "ai", "specforge"],
+  "keywords": [
+    "requirements",
+    "review",
+    "ai",
+    "specforge"
+  ],
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "license": "UNLICENSED",
   "dependencies": {
-    "hono": "^4.7.0",
+    "@google/generative-ai": "^0.24.1",
     "@hono/node-server": "^1.13.0",
     "@octokit/rest": "^21.1.0",
-    "yaml": "^2.7.0",
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "hono": "^4.7.0",
+    "yaml": "^2.7.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
+    "@types/node": "^22.12.0",
     "tsx": "^4.19.0",
-    "vitest": "^3.0.0",
-    "@types/node": "^22.12.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
