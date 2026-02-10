@@ -2,9 +2,11 @@ name: SpecForge Requirements Review
 
 on:
   pull_request:
-    paths:
-      - 'requirements/**'
     types: [opened, synchronize, reopened]
+
+concurrency:
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -14,14 +16,10 @@ permissions:
 jobs:
   requirements-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed requirements files
-        id: changed
+      - name: Check for requirements changes
+        id: check-files
         uses: actions/github-script@v7
         with:
           script: |
@@ -30,90 +28,97 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.issue.number,
             });
-            const reqFiles = files
-              .filter(f => f.filename.startsWith('requirements/'))
-              .filter(f => f.filename !== 'requirements/.gitkeep');
-            const list = reqFiles
-              .map(f => `| \`${f.filename}\` | ${f.status} | +${f.additions} -${f.deletions} |`)
-              .join('\n');
-            core.setOutput('count', String(reqFiles.length));
-            core.setOutput('list', list);
-            core.setOutput('files', reqFiles.map(f => f.filename).join(','));
+            const reqFiles = files.filter(f =>
+              f.filename.startsWith('requirements/') && f.filename !== 'requirements/.gitkeep'
+            );
+            const hasReqChanges = reqFiles.length > 0;
+            const fileCount = reqFiles.length;
+            const totalSize = reqFiles.reduce((sum, f) => sum + f.additions + f.deletions, 0);
+            core.setOutput('has_changes', hasReqChanges.toString());
+            core.setOutput('file_count', fileCount.toString());
+            core.setOutput('total_size', totalSize.toString());
+            if (!hasReqChanges) {
+              core.info('No requirements files changed - skipping review');
+            } else if (fileCount > 20 || totalSize > 5000) {
+              core.warning(`File limits exceeded: ${fileCount} files, ${totalSize} lines changed`);
+            }
 
-      - name: Post or update review comment
-        if: steps.changed.outputs.count != '0'
+      - name: Early exit (neutral) if no requirements changes
+        if: steps.check-files.outputs.has_changes == 'false'
         uses: actions/github-script@v7
-        env:
-          REQ_COUNT: ${{ steps.changed.outputs.count }}
-          REQ_FILE_TABLE: ${{ steps.changed.outputs.list }}
         with:
           script: |
-            const marker = '<!-- specforge-review -->';
-            const count = parseInt(process.env.REQ_COUNT, 10);
-            const fileTable = process.env.REQ_FILE_TABLE;
-            const sha = context.payload.pull_request.head.sha.substring(0, 7);
-            const now = new Date().toISOString();
-
-            const body = [
-              marker,
-              '## SpecForge Requirements Review',
-              '',
-              `> Reviewed at: ${now} (commit: \`${sha}\`)`,
-              '',
-              `### Changed Files (${count})`,
-              '',
-              '| File | Status | Changes |',
-              '|------|--------|---------|',
-              fileTable,
-              '',
-              '---',
-              '',
-              '### Review Summary',
-              '',
-              '> **MVP**: This is an automated review placeholder.',
-              '> Full AI review agents will be enabled in Phase 2.',
-              '',
-              '#### Findings',
-              '',
-              '- Requirements files detected and listed above',
-              '- Detailed AI review: coming in Phase 2 (multi-agent parallel review)',
-              '',
-              '---',
-              '',
-              '> **[AI proposals] are suggestions only.**',
-              '> All requirements must be approved by a human CODEOWNERS reviewer.',
-              '> AI will NOT approve this PR. Only `REQUEST_CHANGES` or `COMMENT` is used.',
-              '',
-              '| Gate | Status |',
-              '|------|--------|',
-              '| Requirements files detected | :white_check_mark: |',
-              '| AI review (Phase 2) | :construction: Placeholder |',
-              '| CODEOWNERS approval required | :lock: Pending |',
-              '| `requirements-approved` label | :label: Required before merge |',
-            ].join('\n');
-
-            // Idempotent: find existing marker comment, update or create
-            const { data: comments } = await github.rest.issues.listComments({
+            await github.rest.checks.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              name: 'specforge-review-check',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: 'neutral',
+              output: {
+                title: 'No requirements files changed',
+                summary: 'This PR does not modify files under `requirements/`. Review skipped.',
+              },
             });
-            const existing = comments.find(c => c.body && c.body.includes(marker));
 
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body: body,
-              });
-              core.info(`Updated existing review comment (id: ${existing.id})`);
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: body,
-              });
-              core.info('Created new review comment');
-            }
+      - name: Early exit (neutral) if file limits exceeded
+        if: >-
+          steps.check-files.outputs.has_changes == 'true' &&
+          (fromJSON(steps.check-files.outputs.file_count) > 20 ||
+           fromJSON(steps.check-files.outputs.total_size) > 5000)
+        id: limits-exceeded
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const count = parseInt('${{ steps.check-files.outputs.file_count }}', 10);
+            const size = parseInt('${{ steps.check-files.outputs.total_size }}', 10);
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'specforge-review-check',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: 'neutral',
+              output: {
+                title: 'Review skipped: file limits exceeded',
+                summary: `Files: ${count} (limit: 20), Total changes: ${size} lines (limit: 5000). Manual review required.`,
+              },
+            });
+
+      - name: Checkout
+        if: >-
+          steps.check-files.outputs.has_changes == 'true' &&
+          !(fromJSON(steps.check-files.outputs.file_count) > 20 ||
+            fromJSON(steps.check-files.outputs.total_size) > 5000)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        if: >-
+          steps.check-files.outputs.has_changes == 'true' &&
+          !(fromJSON(steps.check-files.outputs.file_count) > 20 ||
+            fromJSON(steps.check-files.outputs.total_size) > 5000)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: >-
+          steps.check-files.outputs.has_changes == 'true' &&
+          !(fromJSON(steps.check-files.outputs.file_count) > 20 ||
+            fromJSON(steps.check-files.outputs.total_size) > 5000)
+        run: npm ci
+
+      - name: Run requirements review
+        if: >-
+          steps.check-files.outputs.has_changes == 'true' &&
+          !(fromJSON(steps.check-files.outputs.file_count) > 20 ||
+            fromJSON(steps.check-files.outputs.total_size) > 5000)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: ${{ github.event.repository.name }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+        run: npm run review:pr -- --pr ${{ github.event.pull_request.number }}

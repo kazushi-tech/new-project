@@ -25,3 +25,14 @@ coverage/
 # Temporary
 tmp/
 temp/
+
+# Review output (ephemeral)
+reviews/
+
+# Windows artifacts
+nul
+
+# Claude working files
+CLAUDE.md
+!./CLAUDE.md
+!./.claude/CLAUDE.md

@@ -1,0 +1,26 @@
+name: Render Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Render service URL (overrides secret)'
+        required: false
+        type: string
+
+jobs:
+  smoke-remote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run remote smoke test
+        env:
+          BASE_URL: ${{ inputs.base_url || secrets.RENDER_BASE_URL }}
+          ADMIN_UI_TOKEN: ${{ secrets.ADMIN_UI_TOKEN }}
+        run: npm run smoke:remote
