@@ -1,6 +1,9 @@
-# Gemini Go-Live チェックリスト
+# Gemini Go-Live チェックリスト（任意機能）
 
-Gemini AIレビューエンジンを本番有効化する際の手順書。
+> **注記**: Gemini AI レビューは **任意機能** です。単独運用では `REVIEW_PROVIDER=rule-based` で十分に動作します。
+> Gemini を有効化する場合のみ、本チェックリストに従ってください。
+
+Gemini AIレビューエンジンを有効化する際の手順書。
 
 ---
 

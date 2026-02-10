@@ -1,7 +1,41 @@
 # 運用ハードニングガイド
 
-SpecForge Review の本番運用に必要なセキュリティ・コスト管理・API制限の設定手順。
-すべての手順は **GitHub Web UI + VSCode** のみで実施可能（gh CLI不要）。
+SpecForge Review の運用に必要なセキュリティ・コスト管理・API制限の設定手順。
+
+---
+
+## 0. 単独運用の標準フロー（推奨）
+
+本プロジェクトの標準運用は **ローカル単独運用** である。
+サーバデプロイやクラウドサービスは不要で、CLI 実行と人手 AI レビューの組み合わせで完結する。
+
+### 日次フロー
+
+```bash
+# 1. ローカルレビュー（dry-run）
+npm run review:solo:dry -- --file requirements/path/to/target.md
+
+# 2. 結果確認後、Claude Code で深掘りレビュー
+
+# 3. 人間が最終判断し修正反映
+```
+
+### 週次 / リリース前
+
+```bash
+# ビルド + テスト
+npm run check:solo
+
+# 代表要件の再レビュー
+npm run review:solo:dry -- --file requirements/smoke/sample-requirements.md
+```
+
+詳細は [solo-operation-runbook.md](./solo-operation-runbook.md) を参照。
+
+---
+
+> **以下のセクション（§1〜§9）は、GitHub Actions / Render デプロイなどの拡張運用を行う場合に参照する。**
+> 単独運用のみの場合は上記フローで十分であり、以下は必要時のみ使用する。
 
 ---
 

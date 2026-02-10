@@ -16,6 +16,9 @@
     "smoke:fallback": "tsx server/scripts/smoke-fallback.ts",
     "smoke:go-live": "npm run smoke:gemini && npm run smoke:fallback",
     "smoke:remote": "tsx server/scripts/smoke-remote.ts",
+    "review:solo": "npm run review:local --",
+    "review:solo:dry": "npm run review:local -- --dry-run",
+    "check:solo": "npm run build && npm test",
     "lint": "echo 'TODO: add linter'",
     "validate:schema": "node --input-type=module -e \"import{readFileSync}from'fs';const s=JSON.parse(readFileSync('data/schemas/structured-requirements.schema.json','utf8'));console.log('Schema OK:',s.title)\""
   },

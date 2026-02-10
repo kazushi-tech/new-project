@@ -1,4 +1,8 @@
-# Render デプロイガイド
+# Render デプロイガイド（オプション）
+
+> **注記**: Render デプロイは **常時運用の前提ではありません**。
+> 本プロジェクトの標準運用はローカル単独運用（[solo-operation-runbook.md](./solo-operation-runbook.md) 参照）です。
+> 外部公開やチーム共有が必要な場合のみ、本ガイドに従ってデプロイしてください。
 
 SpecForge Review を Render にデプロイする手順書。
 
